@@ -220,10 +220,10 @@ if image_file:
 
             # Caption
             caption = generate_caption(image, blip_p, blip_m)
-            caption = caption.replace("<start>", "").replace("<end>", "").strip()
-            caption+=optional_text
+            caption = caption.replace("< start >", "").replace("< end >", "").strip()
+            
             # Emotion
-            emotion = detect_emotion(caption)
+            emotion = detect_emotion(caption+optional_text)
 
             # Lyrics
             prompt = build_prompt(caption, emotion, optional_text)
@@ -280,3 +280,4 @@ if image_file:
             unsafe_allow_html=True
 
             )
+
