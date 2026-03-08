@@ -223,7 +223,7 @@ if image_file:
             caption = caption.replace("< start >", "").replace("< end >", "").strip()
             
             # Emotion
-            emotion = detect_emotion(caption+optional_text)
+            emotion = detect_emotion(caption+" "+optional_text)
 
             # Lyrics
             prompt = build_prompt(caption, emotion, optional_text)
@@ -280,4 +280,5 @@ if image_file:
             unsafe_allow_html=True
 
             )
+
 
