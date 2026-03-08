@@ -74,8 +74,7 @@ st.markdown("""
 # -------------------------------------------------
 # GROQ CONFIG
 # -------------------------------------------------
-GROQ_API_KEY = ""   
-client = Groq(api_key=GROQ_API_KEY)
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # -------------------------------------------------
 # LLaMA-3 (Groq)
@@ -279,4 +278,5 @@ if image_file:
             </div>
             """,
             unsafe_allow_html=True
+
             )
