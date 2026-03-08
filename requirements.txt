@@ -5,3 +5,4 @@ Pillow
 gdown
 groq
 accelerate
+sentence_transformers 
