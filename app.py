@@ -76,6 +76,8 @@ st.markdown("""
 # -------------------------------------------------
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
+st.write(st.secrets)
+
 # -------------------------------------------------
 # LLaMA-3 (Groq)
 # -------------------------------------------------
@@ -280,5 +282,6 @@ if image_file:
             unsafe_allow_html=True
 
             )
+
 
 
