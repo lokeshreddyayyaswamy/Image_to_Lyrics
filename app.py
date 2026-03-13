@@ -74,13 +74,10 @@ st.markdown("""
 # -------------------------------------------------
 # GROQ CONFIG
 # -------------------------------------------------
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
-st.write(st.secrets)
+client = Groq()
 
-# -------------------------------------------------
-# LLaMA-3 (Groq)
-# -------------------------------------------------
 def generate_lyrics(prompt):
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
@@ -91,8 +88,8 @@ def generate_lyrics(prompt):
         temperature=0.8,
         max_tokens=200,
     )
-    return response.choices[0].message.content
 
+    return response.choices[0].message.content
 # -------------------------------------------------
 # EMOTION MODEL (GoEmotions)
 # -------------------------------------------------
@@ -282,6 +279,7 @@ if image_file:
             unsafe_allow_html=True
 
             )
+
 
 
 
