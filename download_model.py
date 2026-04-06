@@ -2,7 +2,7 @@ import os
 import gdown
 import zipfile
 
-MODEL_DIR = "blip_finetuned"
+MODEL_DIR = "blip_flickr8k"
 
 def download_model():
 
