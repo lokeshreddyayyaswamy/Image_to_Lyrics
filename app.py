@@ -94,7 +94,7 @@ def generate_lyrics(prompt):
 # -------------------------------------------------
 # EMOTION MODEL (GoEmotions)
 # -------------------------------------------------
-@st.cache_resource
+
 def load_emotion_model():
     return pipeline(
         "text-classification",
@@ -114,7 +114,7 @@ def detect_emotion(text):
 # -------------------------------------------------
 # BLIP IMAGE CAPTION (OFFLINE)
 # -------------------------------------------------
-@st.cache_resource
+
 def load_blip():
 
     model_path = download_model()
@@ -136,7 +136,7 @@ def generate_caption(image, processor, model):
 # -------------------------------------------------
 # SBERT SIMILARITY (FIXED)
 # -------------------------------------------------
-@st.cache_resource
+
 def load_sbert():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
