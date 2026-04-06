@@ -8,7 +8,7 @@ def download_model():
 
     if not os.path.exists(MODEL_DIR):
 
-        file_id = "1jlK9tCLR2OBvoPyxras68j5IR-pDZ_xc"
+        file_id = "1GqAwogDYa_847QqgOVqMooakNKdSth-6"
         url = f"https://drive.google.com/uc?id={file_id}"
 
         output = "blip_finetuned.zip"
