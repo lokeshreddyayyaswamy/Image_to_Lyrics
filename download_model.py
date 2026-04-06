@@ -13,7 +13,7 @@ def download_model():
 
         output = "blip_finetuned.zip"
 
-        gdown.download(url, output, quiet=False)
+        gdown.download(url, output, quiet=False,fuzzy=True)
 
         with zipfile.ZipFile(output, "r") as zip_ref:
             zip_ref.extractall()
