@@ -217,6 +217,9 @@ if image_file:
         with st.spinner("Running full AI pipeline..."):
             # Load models
             blip_p, blip_m = load_blip()
+            model_path = download_model()
+
+            processor = BlipProcessor.from_pretrained(model_path)
 
             model_path = "model/"
 
