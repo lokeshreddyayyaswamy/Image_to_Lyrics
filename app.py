@@ -81,7 +81,7 @@ client = Groq()
 
 def generate_lyrics(prompt):
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="llama-3.1-70b-versatile",
         messages=[
             {"role": "system", "content": "You are a creative lyricist."},
             {"role": "user", "content": prompt},
@@ -140,8 +140,8 @@ def generate_caption(image, processor, model):
         output = model.generate(
         **inputs,
         max_length=50,
-        num_beams=5,
-        temperature=1.0,
+        num_beams=7,
+        temperature=0.7,
         top_p=0.9,
         repetition_penalty=1.2
     )
