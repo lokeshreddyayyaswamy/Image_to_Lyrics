@@ -123,8 +123,8 @@ def load_blip():
     import streamlit as st
     import os
 
-    st.write("REAL model path:", model_path)
-    st.write("Files in REAL path:", os.listdir(model_path))
+    #st.write("REAL model path:", model_path)
+    #st.write("Files in REAL path:", os.listdir(model_path))
 
     processor = BlipProcessor.from_pretrained(model_path)
 
