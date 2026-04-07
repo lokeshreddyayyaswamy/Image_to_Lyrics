@@ -115,7 +115,7 @@ def detect_emotion(text):
 # BLIP IMAGE CAPTION (OFFLINE)
 # -------------------------------------------------
 
-@st.cache_resource
+#@st.cache_resource
 def load_blip():
 
     model_path = download_model()
@@ -137,7 +137,14 @@ def load_blip():
 def generate_caption(image, processor, model):
     inputs = processor(image, return_tensors="pt").to(model.device)
     with torch.no_grad():
-        output = model.generate(**inputs, max_length=40)
+        output = model.generate(
+        **inputs,
+        max_length=50,
+        num_beams=5,
+        temperature=1.0,
+        top_p=0.9,
+        repetition_penalty=1.2
+    )
     return processor.decode(output[0], skip_special_tokens=True)
 
 # -------------------------------------------------
