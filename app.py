@@ -116,14 +116,10 @@ def detect_emotion(text):
 # -------------------------------------------------
 
 @st.cache_resource
-def load_blip():
+def load_blip(model_name):
 
-    MODEL_NAME = "lokeshreddyayyaswamy/BLIP_Finetune_Flicker8k"
-
-    processor = BlipProcessor.from_pretrained(MODEL_NAME)
-    model = BlipForConditionalGeneration.from_pretrained(
-        MODEL_NAME
-    ).eval()
+    processor = BlipProcessor.from_pretrained(model_name)
+    model = BlipForConditionalGeneration.from_pretrained(model_name).eval()
 
     return processor, model
 
@@ -223,7 +219,9 @@ if image_file:
 
         with st.spinner("Running full AI pipeline..."):
             # Load models
-            blip_p, blip_m = load_blip()
+            MODEL_NAME = "lokeshreddyayyaswamy/BLIP_Finetune_Flicker8k"   
+
+            blip_p, blip_m = load_blip(MODEL_NAME)
             
             sbert = load_sbert()
 
