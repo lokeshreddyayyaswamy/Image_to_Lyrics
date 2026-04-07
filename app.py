@@ -217,7 +217,13 @@ if image_file:
         with st.spinner("Running full AI pipeline..."):
             # Load models
             blip_p, blip_m = load_blip()
-            model_path = "model/"   # ✅ define first
+
+            model_path = "model/"
+
+            import os
+            st.write("Loading model from:", model_path)
+            st.write("Files inside model folder:", os.listdir(model_path))
+            st.write("Absolute path:", os.path.abspath(model_path))
 
             print("Loading model from:", model_path)  # ✅ then use
             sbert = load_sbert()
