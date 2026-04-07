@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import torch
 from PIL import Image
-from download_model import download_model
+
 
 from transformers import (
     BlipProcessor,
@@ -115,21 +115,14 @@ def detect_emotion(text):
 # BLIP IMAGE CAPTION (OFFLINE)
 # -------------------------------------------------
 
-#@st.cache_resource
+@st.cache_resource
 def load_blip():
 
-    model_path = download_model()
+    MODEL_NAME = "lokeshreddyayyaswamy/blip_flickr8k"
 
-    import streamlit as st
-    import os
-
-    #st.write("REAL model path:", model_path)
-    #st.write("Files in REAL path:", os.listdir(model_path))
-
-    processor = BlipProcessor.from_pretrained(model_path)
-
+    processor = BlipProcessor.from_pretrained(MODEL_NAME)
     model = BlipForConditionalGeneration.from_pretrained(
-        model_path
+        MODEL_NAME
     ).eval()
 
     return processor, model
