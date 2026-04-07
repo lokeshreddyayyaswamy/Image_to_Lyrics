@@ -118,7 +118,7 @@ def detect_emotion(text):
 @st.cache_resource
 def load_blip():
 
-    MODEL_NAME = "lokeshreddyayyaswamy/Blip_Finetuned"
+    MODEL_NAME = "lokeshreddyayyaswamy/BLIP_Finetune_Flicker8k"
 
     processor = BlipProcessor.from_pretrained(MODEL_NAME)
     model = BlipForConditionalGeneration.from_pretrained(
