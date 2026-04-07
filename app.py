@@ -81,7 +81,7 @@ client = Groq()
 
 def generate_lyrics(prompt):
     response = client.chat.completions.create(
-        model="llama-3.1-70b-versatile",
+        model="llama-3.1-8b-instant",
         messages=[
             {"role": "system", "content": "You are a creative lyricist."},
             {"role": "user", "content": prompt},
