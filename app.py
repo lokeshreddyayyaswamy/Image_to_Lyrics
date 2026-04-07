@@ -114,10 +114,17 @@ def detect_emotion(text):
 # -------------------------------------------------
 # BLIP IMAGE CAPTION (OFFLINE)
 # -------------------------------------------------
+
 @st.cache_resource
 def load_blip():
 
     model_path = download_model()
+
+    import streamlit as st
+    import os
+
+    st.write("REAL model path:", model_path)
+    st.write("Files in REAL path:", os.listdir(model_path))
 
     processor = BlipProcessor.from_pretrained(model_path)
 
@@ -217,18 +224,7 @@ if image_file:
         with st.spinner("Running full AI pipeline..."):
             # Load models
             blip_p, blip_m = load_blip()
-            model_path = download_model()
-
-            processor = BlipProcessor.from_pretrained(model_path)
-
-            model_path = "model/"
-
-            import os
-            st.write("Loading model from:", model_path)
-            st.write("Files inside model folder:", os.listdir(model_path))
-            st.write("Absolute path:", os.path.abspath(model_path))
-
-            print("Loading model from:", model_path)  # ✅ then use
+            
             sbert = load_sbert()
 
             # Caption
