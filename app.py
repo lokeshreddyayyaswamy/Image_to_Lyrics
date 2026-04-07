@@ -217,7 +217,9 @@ if image_file:
         with st.spinner("Running full AI pipeline..."):
             # Load models
             blip_p, blip_m = load_blip()
-            print("Loading model from:", model_path)
+            model_path = "model/"   # ✅ define first
+
+            print("Loading model from:", model_path)  # ✅ then use
             sbert = load_sbert()
 
             # Caption
