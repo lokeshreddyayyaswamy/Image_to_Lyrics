@@ -129,10 +129,9 @@ def generate_caption(image, processor, model):
         output = model.generate(
         **inputs,
         max_length=50,
-        num_beams=7,
-        temperature=0.7,
+        temperature=1.0,
         top_p=0.9,
-        repetition_penalty=1.2
+        repetition_penalty=1.0
     )
     return processor.decode(output[0], skip_special_tokens=True)
 
