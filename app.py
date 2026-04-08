@@ -214,12 +214,12 @@ if image_file:
 
     if st.button("Generate Lyrics 🎶"):
 
-        # ✅ VERY IMPORTANT: define beforehand
+        #  VERY IMPORTANT: define beforehand
         similarity_score = None
 
         with st.spinner("Running full AI pipeline..."):
             # Load models
-            MODEL_NAME = "lokeshreddyayyaswamy/BLIP_Finetune_Flicker8k"   
+            MODEL_NAME = "lokeshreddyayyaswamy/Blip_Flickr8k_Finetuned"   
 
             blip_p, blip_m = load_blip(MODEL_NAME)
             
