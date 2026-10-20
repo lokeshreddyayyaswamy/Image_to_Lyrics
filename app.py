@@ -61,7 +61,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# GROQ CONFIG (Aligned with Paper: LLaMA 3.1)
+# GROQ CONFIG
 # -------------------------------------------------
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 client = Groq()
@@ -69,16 +69,16 @@ client = Groq()
 def generate_lyrics(prompt):
     try:
         response = client.chat.completions.create(
-            model="openai/gpt-oss-120b",  # 120B parameter flagship open-weights model
+            model="openai/gpt-oss-120b",
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a professional songwriter who writes structured lyrics with consistent syllable rhythm and rhyme schemes."
+                    "content": "You are an award-winning indie/pop songwriter. You write natural, deeply relatable lyrics with genuine rhymes (never repeating the same end-word) and vivid imagery grounded in the scene."
                 },
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.7,
-            max_tokens=1500,  # Higher limit so internal reasoning tokens don't cut off the lyrics
+            temperature=0.65,
+            max_tokens=1500,
         )
         return response.choices[0].message.content
 
@@ -88,9 +88,11 @@ def generate_lyrics(prompt):
     except APIConnectionError:
         st.error("Could not connect to Groq. Please try again.")
         return None
-
 # -------------------------------------------------
 # UPGRADE 1: TOP-2 EMOTION BLENDING
+# -------------------------------------------------
+# -------------------------------------------------
+# FIX 1: SMART EMOTION DETECTION (NO FAKE "FEAR" ON CALM IMAGES)
 # -------------------------------------------------
 @st.cache_resource
 def load_emotion_model():
@@ -105,12 +107,26 @@ def detect_top2_emotions(text):
     outputs = model(text)[0]
     outputs_sorted = sorted(outputs, key=lambda x: x["score"], reverse=True)
     
-    # Grab top 2 emotions and their confidence scores
-    primary = outputs_sorted[0]
-    secondary = outputs_sorted[1]
-    
-    emotion_summary = f"{primary['label'].capitalize()} ({primary['score']*100:.1f}%) + {secondary['label'].capitalize()} ({secondary['score']*100:.1f}%)"
-    return emotion_summary, primary['label'], secondary['label']
+    top1 = outputs_sorted[0]
+    top2 = outputs_sorted[1]
+
+    # Map musical tone so 'neutral' becomes poetic contemplation instead of creepy 'fear'
+    musical_mood_map = {
+        "neutral": "Calm Reflection & Wanderlust",
+        "joy": "Warm Joy & Euphoria",
+        "sadness": "Melancholy & Bittersweet Longing",
+        "surprise": "Wonder & Breathless Awe",
+        "fear": "Restless Tension & Vulnerability",
+        "anger": "Fierce Intensity & Defiance",
+        "disgust": "Jaded Disillusionment"
+    }
+
+    primary_mood = musical_mood_map.get(top1["label"], top1["label"].capitalize())
+    secondary_mood = musical_mood_map.get(top2["label"], top2["label"].capitalize())
+
+    # If the caption is overwhelmingly neutral (>50%), don't let a random 10% 'fear' ruin the song
+    if top1["label"] == "neutral" and top1["score"] > 0.50 and top2["label"] in ["fear", "disgust", "anger"]:
+        secondary_mood = "Quiet Anticipation"
 
 # -------------------------------------------------
 # BLIP IMAGE CAPTION (YOUR FINE-TUNED MODEL)
