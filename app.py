@@ -3,7 +3,6 @@ import os
 import re
 import torch
 import numpy as np
-import pronouncing
 from PIL import Image
 from transformers import (
     BlipProcessor,
@@ -61,7 +60,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# GROQ CONFIG
+# GROQ CONFIG (120B Model)
 # -------------------------------------------------
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 client = Groq()
@@ -73,63 +72,55 @@ def generate_lyrics(prompt):
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an award-winning indie/pop songwriter. You write natural, deeply relatable lyrics with genuine rhymes (never repeating the same end-word) and vivid imagery grounded in the scene."
+                    "content": "You are a professional songwriter who writes structured lyrics with consistent syllable rhythm and rhyme schemes."
                 },
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.65,
+            temperature=0.7,
             max_tokens=1500,
         )
         return response.choices[0].message.content
 
     except APIStatusError as e:
-        st.error(f"Groq API error (HTTP {e.status_code}): {e.message}")
+        st.error(f"Groq API error (HTTP {e.status_code}).")
         return None
     except APIConnectionError:
         st.error("Could not connect to Groq. Please try again.")
         return None
+
 # -------------------------------------------------
-# UPGRADE 1: TOP-2 EMOTION BLENDING
-# -------------------------------------------------
-# -------------------------------------------------
-# FIX 1: SMART EMOTION DETECTION (NO FAKE "FEAR" ON CALM IMAGES)
+# FIXED EMOTION MODEL (Handles all HF versions safely)
 # -------------------------------------------------
 @st.cache_resource
 def load_emotion_model():
     return pipeline(
         "text-classification",
-        model="j-hartmann/emotion-english-distilroberta-base",
-        top_k=None
+        model="j-hartmann/emotion-english-distilroberta-base"
     )
 
 def detect_top2_emotions(text):
     model = load_emotion_model()
-    outputs = model(text)[0]
+    raw_outputs = model(text, top_k=None)
+
+    # Safely unwrap whether HuggingFace returns [[dict, dict]] or [dict, dict]
+    if isinstance(raw_outputs, list) and len(raw_outputs) > 0 and isinstance(raw_outputs[0], list):
+        outputs = raw_outputs[0]
+    else:
+        outputs = raw_outputs
+
     outputs_sorted = sorted(outputs, key=lambda x: x["score"], reverse=True)
-    
-    top1 = outputs_sorted[0]
-    top2 = outputs_sorted[1]
 
-    # Map musical tone so 'neutral' becomes poetic contemplation instead of creepy 'fear'
-    musical_mood_map = {
-        "neutral": "Calm Reflection & Wanderlust",
-        "joy": "Warm Joy & Euphoria",
-        "sadness": "Melancholy & Bittersweet Longing",
-        "surprise": "Wonder & Breathless Awe",
-        "fear": "Restless Tension & Vulnerability",
-        "anger": "Fierce Intensity & Defiance",
-        "disgust": "Jaded Disillusionment"
-    }
+    primary = outputs_sorted[0]
+    secondary = outputs_sorted[1] if len(outputs_sorted) > 1 else outputs_sorted[0]
 
-    primary_mood = musical_mood_map.get(top1["label"], top1["label"].capitalize())
-    secondary_mood = musical_mood_map.get(top2["label"], top2["label"].capitalize())
-
-    # If the caption is overwhelmingly neutral (>50%), don't let a random 10% 'fear' ruin the song
-    if top1["label"] == "neutral" and top1["score"] > 0.50 and top2["label"] in ["fear", "disgust", "anger"]:
-        secondary_mood = "Quiet Anticipation"
+    emotion_summary = (
+        f"{primary['label'].capitalize()} ({primary['score']*100:.1f}%) + "
+        f"{secondary['label'].capitalize()} ({secondary['score']*100:.1f}%)"
+    )
+    return emotion_summary, primary["label"], secondary["label"]
 
 # -------------------------------------------------
-# BLIP IMAGE CAPTION (YOUR FINE-TUNED MODEL)
+# BLIP IMAGE CAPTION (OFFLINE / FINE-TUNED)
 # -------------------------------------------------
 @st.cache_resource
 def load_blip(model_name):
@@ -150,7 +141,7 @@ def generate_caption(image, processor, model):
     return processor.decode(output[0], skip_special_tokens=True)
 
 # -------------------------------------------------
-# SBERT SIMILARITY + UPGRADE 2: RHYTHM & RHYME METRICS
+# SBERT SIMILARITY + BUILT-IN RHYTHM/RHYME METRICS
 # -------------------------------------------------
 @st.cache_resource
 def load_sbert():
@@ -162,70 +153,83 @@ def compute_similarity(caption, lyrics, sbert):
     return float(score)
 
 def count_word_syllables(word):
-    clean_w = re.sub(r'[^a-zA-Z]', '', word.lower())
-    if not clean_w:
+    word = re.sub(r'[^a-z]', '', word.lower())
+    if not word:
         return 0
-    phones = pronouncing.phones_for_word(clean_w)
-    if phones:
-        return pronouncing.syllable_count(phones[0])
-    # Simple fallback vowel counter if word isn't in dictionary
-    return max(1, len(re.findall(r'[aeiouy]+', clean_w)))
+    if len(word) <= 3:
+        return 1
+    # Remove silent trailing 'e', 'es', 'ed'
+    word = re.sub(r'(?:[^laeiouy]es|ed|[^laeiouy]e)$', '', word)
+    word = re.sub(r'^y', '', word)
+    vowels = re.findall(r'[aeiouy]{1,2}', word)
+    return max(1, len(vowels))
+
+def get_phonetic_ending(word):
+    word = re.sub(r'[^a-z]', '', word.lower())
+    if not word:
+        return ""
+    # Normalize common silent endings so rhyming words match cleanly
+    word = re.sub(r'e$', '', word)
+    match = re.search(r'[aeiouy]+[bcdfghjklmnpqrstvwxz]*$', word)
+    return match.group(0) if match else word[-2:]
 
 def evaluate_lyrics_structure(lyrics):
-    # Get only actual lyric lines (ignore [Verse] / [Chorus] headers)
     lines = [
         line.strip() for line in lyrics.split("\n")
-        if line.strip() and not line.strip().startswith("[")
+        if line.strip() and not line.strip().startswith("[") and not line.strip().startswith("(")
     ]
     if len(lines) < 2:
         return 0.0, 0.0
 
-    # 1. Count syllables per line
     syllable_counts = []
-    last_words = []
+    endings = []
     for line in lines:
-        words = line.split()
+        words = [re.sub(r'[^a-zA-Z]', '', w) for w in line.split()]
+        words = [w for w in words if w]
+        if not words:
+            continue
         syllable_counts.append(sum(count_word_syllables(w) for w in words))
-        last_word = re.sub(r'[^a-zA-Z]', '', words[-1].lower()) if words else ""
-        last_words.append(last_word)
+        endings.append(get_phonetic_ending(words[-1]))
+
+    if not syllable_counts:
+        return 0.0, 0.0
 
     avg_syllables = float(np.mean(syllable_counts))
 
-    # 2. Check how many lines rhyme with another line in the song
+    # Check how many lines share a phonetic rhyme ending with another line
     rhyming_lines = 0
-    for i, word in enumerate(last_words):
-        if not word:
+    for i, end in enumerate(endings):
+        if not end:
             continue
-        valid_rhymes = set(pronouncing.rhymes(word))
-        other_words = last_words[:i] + last_words[i+1:]
-        # Count if it rhymes (or shares the exact ending sound) with another line
-        if any((other in valid_rhymes or (len(word) > 3 and other.endswith(word[-2:]))) for other in other_words if other):
+        other_endings = endings[:i] + endings[i+1:]
+        if any(end == other or (len(end) >= 2 and len(other) >= 2 and end[-2:] == other[-2:]) for other in other_endings):
             rhyming_lines += 1
 
-    rhyme_density = rhyming_lines / len(lines)
+    rhyme_density = rhyming_lines / len(endings)
     return avg_syllables, rhyme_density
 
 # -------------------------------------------------
-# UPGRADE 3: STRUCTURED SONG PROMPT BUILDER
+# PROMPT BUILDER
 # -------------------------------------------------
 def build_prompt(caption, primary_emo, secondary_emo, optional_text=None):
     return f"""
 You are an experienced songwriter.
 
-Transform the visual scenario into structured, emotional song lyrics.
+Transform the scenario into structured, emotional song lyrics.
 
 Scenario: {caption}
-Primary Emotion: {primary_emo}
+Dominant Emotion: {primary_emo}
 Secondary Undertone: {secondary_emo}
-{f"Additional context: {optional_text}" if optional_text else ""}
+{f"Additional emotional direction: {optional_text}" if optional_text else ""}
 
-Strict Structural & Musical Rules:
-1. Write exactly 1 [Verse] (4 lines) and 1 [Chorus] (4 lines).
-2. Follow a strict AABB or ABAB rhyme scheme at the end of each line.
-3. Keep a steady rhythm of 8 to 10 syllables per line so it can be sung to a beat.
-4. Blend the primary emotion ({primary_emo}) with subtle hints of {secondary_emo}.
-5. Focus on poetic imagery and sensory details rather than literal descriptions.
-6. Output ONLY the [Verse] and [Chorus] lyrics.
+Output format:
+Write 1 [Verse] (4 lines) and 1 [Chorus] (4 lines).
+
+Requirements:
+* Use an AABB or ABAB rhyme scheme at the end of the lines.
+* Keep each line around 8 to 10 syllables so it flows like a real song.
+* Blend the feelings of {primary_emo} and {secondary_emo} using poetic imagery.
+* Write ONLY the lyrics with [Verse] and [Chorus] headers.
 """
 
 # -------------------------------------------------
@@ -251,25 +255,21 @@ if image_file:
             blip_p, blip_m = load_blip(MODEL_NAME)
             sbert = load_sbert()
 
-            # 1. Generate & Clean Caption
+            # 1. Caption
             caption = generate_caption(image, blip_p, blip_m)
-            caption = caption.replace("< start >", "").replace("< end >", "").replace("start", "").replace("end", "").strip()
+            caption = re.sub(r'<\s*start\s*>|<\s*end\s*>|^start\s+|\s+end$', '', caption, flags=re.IGNORECASE).strip()
 
-            # 2. Top-2 Emotion Detection
+            # 2. Emotion (Safe Top-2 Blend)
             combined_text = f"{caption} {optional_text}".strip()
             emotion_display, primary_emo, secondary_emo = detect_top2_emotions(combined_text)
 
-            # 3. Generate Structured Lyrics (with 1 automatic retry if rhyme is too low)
+            # 3. Lyrics
             prompt = build_prompt(caption, primary_emo, secondary_emo, optional_text)
             lyrics = generate_lyrics(prompt)
 
+            # 4. Metrics
             if lyrics and lyrics.strip():
                 avg_syllables, rhyme_density = evaluate_lyrics_structure(lyrics)
-                # Self-correction: if rhyme density is weak (< 0.4), regenerate once
-                if rhyme_density < 0.4:
-                    lyrics = generate_lyrics(prompt + "\nIMPORTANT: Make sure the last words of every pair of lines strictly rhyme!")
-                    avg_syllables, rhyme_density = evaluate_lyrics_structure(lyrics)
-
                 similarity_score = compute_similarity(caption, lyrics, sbert)
 
         # ---------------- OUTPUT ----------------
@@ -286,7 +286,7 @@ if image_file:
         st.markdown(
             f"""
             <div class="emotion-box">
-            <div class="box-title">😊 Affective Blend (Top-2 Emotions)</div>
+            <div class="box-title">😊 Emotion Blend (Top-2)</div>
             {emotion_display}
             </div>
             """,
@@ -307,8 +307,8 @@ if image_file:
             st.markdown(
                 f"""
                 <div class="similarity-box">
-                🔗 Semantic Similarity: {similarity_score:.3f} &nbsp;|&nbsp; 
-                🥁 Avg Syllables/Line: {avg_syllables:.1f} &nbsp;|&nbsp; 
+                🔗 Caption–Lyrics Similarity: {similarity_score:.3f} &nbsp;|&nbsp;
+                🥁 Avg Syllables/Line: {avg_syllables:.1f} &nbsp;|&nbsp;
                 🎵 Rhyme Score: {rhyme_density*100:.0f}%
                 </div>
                 """,
