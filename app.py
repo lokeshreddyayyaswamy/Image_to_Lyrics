@@ -13,6 +13,7 @@ from transformers import (
 from groq import Groq
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from groq import Groq, APIStatusError, APIConnectionError
 
 # -------------------------------------------------
 # PAGE CONFIG
@@ -80,36 +81,47 @@ os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 client = Groq()
 
 def generate_lyrics(prompt):
-    response = client.chat.completions.create(
-        model="openai/gpt-oss-20b",
-        messages=[
-            {"role": "system", "content": "You are a creative lyricist."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.8,
-        max_tokens=200,
-    )
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a creative lyricist."
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.8,
+            max_tokens=300,
+        )
+        return response.choices[0].message.content
 
-    return response.choices[0].message.content
+    except APIStatusError as e:
+        st.error(f"Groq API error (HTTP {e.status_code}).")
+        return None
+
+    except APIConnectionError:
+        st.error("Could not connect to Groq. Please try again.")
+        return None
 # -------------------------------------------------
 # EMOTION MODEL (GoEmotions)
 # -------------------------------------------------
 
+@st.cache_resource
 def load_emotion_model():
     return pipeline(
         "text-classification",
         model="j-hartmann/emotion-english-distilroberta-base",
         top_k=None
     )
+
 def detect_emotion(text):
-
-    outputs = load_emotion_model()(text)[0]
-
-    outputs_sorted = sorted(outputs, key=lambda x: x["score"], reverse=True)
-
-    top = outputs_sorted[0]
-
-    return top["label"]
+    model = load_emotion_model()
+    outputs = model(text)[0]
+    outputs_sorted = sorted(
+        outputs, key=lambda x: x["score"], reverse=True
+    )
+    return outputs_sorted[0]["label"]
 
 # -------------------------------------------------
 # BLIP IMAGE CAPTION (OFFLINE)
@@ -276,16 +288,15 @@ if image_file:
         )
 
         # Similarity
-        if similarity_score:
-            st.markdown(
-            f"""
-            <div class="similarity-box">
-            🔗 Caption–Lyrics Similarity: {similarity_score:.3f}
-            </div>
-            """,
-            unsafe_allow_html=True
-
-            )
+        if similarity_score is not None:
+    st.markdown(
+        f"""
+        <div class="similarity-box">
+        🔗 Caption–Lyrics Similarity: {similarity_score:.3f}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 
