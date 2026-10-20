@@ -289,14 +289,14 @@ if image_file:
 
         # Similarity
         if similarity_score is not None:
-    st.markdown(
-        f"""
-        <div class="similarity-box">
-        🔗 Caption–Lyrics Similarity: {similarity_score:.3f}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+            st.markdown(
+                f"""
+                <div class="similarity-box">
+                🔗 Caption–Lyrics Similarity: {similarity_score:.3f}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
 
 
